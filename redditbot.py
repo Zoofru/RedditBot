@@ -183,7 +183,7 @@ class Ui_MainWindow(object):
         self.ww.show()
 
     def run_reply_bot(self):
-        questions = self.textEdit.toPlainText().split(" ")
+        questions = self.textEdit.toPlainText().split(".")
         print("Bot is running...")
         sys.stdout.flush()
 
