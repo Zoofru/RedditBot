@@ -5,12 +5,15 @@ from praw.models import MoreComments
 import requests, shutil, praw, os, datetime, json
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QLabel, QWidget, QPushButton, QVBoxLayout
+import KEYS
 
 reddit = praw.Reddit(
-
+    client_id=KEYS.client_id,
+    client_secret=KEYS.client_secret,
+    password=KEYS.password,
+    username=KEYS.username,
+    user_agent=KEYS.user_agent
 )
-
-print(reddit.user.me())
 
 # Made with PyQt5 Designer
 class Ui_MainWindow(object):
@@ -236,12 +239,16 @@ class Ui_MainWindow(object):
                     continue
                 if top_level_comment.body == self.lineEdit_7.text():
                     comment_to_reply = reddit.comment(id=str(top_level_comment.id))
-                    try:
-                        comment_to_reply.reply(self.textEdit_2.toPlainText())
-                    except:
-                        print("Bot cannot reply here!")
-                        sys.stdout.flush()
-                time.sleep(2)
+                    if not comment_to_reply.saved:
+                        try:
+                            comment_to_reply.reply(self.textEdit_2.toPlainText())
+                            comment_to_reply.save()
+                        except:
+                            print("Bot cannot reply here!")
+                            sys.stdout.flush()
+                    else:
+                        print("already replied")
+            time.sleep(2)
 
 
     def ok_clicked(self):
@@ -249,21 +256,25 @@ class Ui_MainWindow(object):
 
     def run_post_bot(self):
         questions = self.textEdit.toPlainText().split(".")
+        titles = [q.lower() for q in questions]
         print("Bot is running...")
         sys.stdout.flush()
 
         subreddit = reddit.subreddit(self.lineEdit_2.text().lower())
-        try:
-            for submission in subreddit.stream.submissions():
-                s_title = submission.title.lower()
-                for question_phrase in questions:
-                    if question_phrase in s_title:
-                        submission.reply(self.lineEdit_3.text())
-                        break
-        except:
-            print("SubReddit dosent exist!")
-            sys.stdout.flush()
-            self.close()
+        while True:
+            try:
+                for submission in subreddit.stream.submissions():
+                    s_title = submission.title.lower()
+                    for question_phrase in titles:
+                        if question_phrase in s_title and not submission.saved:
+                            submission.reply(self.lineEdit_3.text())
+                            submission.save()
+                            break
+            except:
+                print("SubReddit dosent exist!")
+                sys.stdout.flush()
+                self.close()
+            time.sleep(2)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -403,11 +414,11 @@ class Warning(QWidget):
                 # GET JSON TO ACCESS FALLBACK URLS FOR VIDEO
                 # NOT ALL VIDEOS HAVE A FALLBACK URL, THIS IS THE ONLY WAY IVE FIGURED TO GET THE MP4 OF A POST
                 url = reddit.config.reddit_url + submission.permalink + ".json"
-                data = requests.get(url, , stream=True).json()
+                data = requests.get(url, headers=KEYS.UA_header, stream=True).json()
                 vUrl = data[0]["data"]["children"][0]["data"]["preview"]["reddit_video_preview"]["fallback_url"]
                 extension = self.ft_videos(vUrl[-3:])
                 fpv = f"{path_media}/{formateddate}_{formatedms}.{extension}"
-                r = requests.get(vUrl, , stream=True)
+                r = requests.get(vUrl, headers=KEYS.UA_header, stream=True)
                 with open(fpv, 'wb') as f:
                     shutil.copyfileobj(r.raw, f)
             except KeyError or UnicodeDecodeError:           
